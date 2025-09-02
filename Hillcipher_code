@@ -1,0 +1,112 @@
+import numpy as np
+
+# A=0, B=1, ..., Z=25
+def char_to_num(text):
+    text = text.upper()
+    return [ord(c) - ord('A') for c in text if c.isalpha()]
+
+def num_to_char(nums):
+    return ''.join([chr(int(n) % 26 + ord('A')) for n in nums])
+
+# Pad text to multiple of 3
+def pad_text(text, block_size=3):
+    while len(text) % block_size != 0:
+        text += 'X'
+    return text
+
+# Check if determinant is odd
+def is_determinant_odd(matrix):
+    det = round(np.linalg.det(matrix))
+    return det % 2 == 1
+
+# Modular inverse (mod 26)
+def mod_inverse(a, m):
+    a = a % m
+    for x in range(1, m):
+        if (a * x) % m == 1:
+            return x
+    return None
+
+# Matrix inverse under mod 26
+def matrix_mod_inv(matrix, modulus=26):
+    det = int(round(np.linalg.det(matrix))) % modulus
+    inv_det = mod_inverse(det, modulus)
+    if inv_det is None:
+        return None  # Inverse doesn't exist
+
+    # Cofactor matrix
+    cofactors = np.linalg.inv(matrix).T * np.linalg.det(matrix)
+    adjugate = np.round(cofactors).astype(int) % modulus
+    return (inv_det * adjugate) % modulus
+
+# Encrypt
+def hill_encrypt(plaintext, key_matrix):
+    text_nums = char_to_num(pad_text(plaintext, 3))
+    cipher_nums = []
+
+    for i in range(0, len(text_nums), 3):
+        block = np.array(text_nums[i:i+3])
+        encrypted_block = np.dot(key_matrix, block) % 26
+        cipher_nums.extend(encrypted_block)
+
+    return num_to_char(cipher_nums)
+
+# Decrypt
+def hill_decrypt(ciphertext, key_matrix):
+    cipher_nums = char_to_num(ciphertext)
+    inverse_matrix = matrix_mod_inv(key_matrix, 26)
+
+    if inverse_matrix is None:
+        print("Error: Matrix inverse doesn't exist under mod 26. Decryption not possible.")
+        return None
+
+    plain_nums = []
+
+    for i in range(0, len(cipher_nums), 3):
+        block = np.array(cipher_nums[i:i+3])
+        decrypted_block = np.dot(inverse_matrix, block) % 26
+        plain_nums.extend(decrypted_block)
+
+    return num_to_char(plain_nums)
+
+# Main Program
+def main():
+    print("===== Hill Cipher (3x3 Matrix Only) =====")
+
+    while True:
+        try:
+            raw = input("Enter 9 numbers for 3x3 key matrix (space-separated): ")
+            values = list(map(int, raw.strip().split()))
+            if len(values) != 9:
+                print("You must enter exactly 9 numbers.")
+                continue
+
+            key_matrix = np.array(values).reshape(3, 3)
+
+            if not is_determinant_odd(key_matrix):
+                print("Matrix determinant is not odd. Please enter a different matrix.")
+                continue
+
+            break
+        except ValueError:
+            print("Invalid input. Please enter numbers only.")
+
+    while True:
+        choice = input("Choose [E]ncrypt / [D]ecrypt / [Q]uit: ").strip().upper()
+        if choice == 'E':
+            plain = input("Enter plaintext: ")
+            cipher = hill_encrypt(plain, key_matrix)
+            print("Encrypted Cipher Text:", cipher)
+        elif choice == 'D':
+            cipher = input("Enter ciphertext: ")
+            plain = hill_decrypt(cipher, key_matrix)
+            if plain:
+                print("Decrypted Plain Text:", plain)
+        elif choice == 'Q':
+            print("Exiting...")
+            break
+        else:
+            print("Invalid choice. Try again.")
+
+if __name__ == "__main__":
+    main()
